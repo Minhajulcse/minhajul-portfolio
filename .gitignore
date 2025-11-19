@@ -1,0 +1,6 @@
+node_modules/
+.next/
+dist/
+.vscode/
+public/resume.pdf
+.DS_Store
