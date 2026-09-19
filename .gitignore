@@ -4,3 +4,14 @@ dist/
 .vscode/
 public/resume.pdf
 .DS_Store
+
+# Next.js
+.next/
+out/
+
+# Node
+node_modules/
+
+# Local environment
+.env
+.env.local
