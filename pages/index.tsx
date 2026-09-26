@@ -15,6 +15,14 @@ const achievements = [
   "https://i.imgur.com/ifxVSh2.jpeg",
   "https://i.imgur.com/eWl43DX.jpeg",
   "https://i.imgur.com/NZ4h4qn.jpeg",
+  "/achievements/achievement-13.jpg",
+  "/achievements/achievement-14.jpg",
+  "/achievements/achievement-15.jpg",
+  "/achievements/achievement-16.jpg",
+  "/achievements/achievement-17.jpg",
+  "/achievements/achievement-18.jpg",
+  "/achievements/achievement-19.jpg",
+  "/achievements/achievement-20.jpg",
 ];
 
 const navItems = [
@@ -163,6 +171,8 @@ const reveal = (delay = 0, distance = 22) => ({
 export default function Portfolio(): JSX.Element {
   const [menuOpen, setMenuOpen] = useState(false);
   const [dark, setDark] = useState(false);
+  const [galleryOpen, setGalleryOpen] = useState(false);
+  const [activeImage, setActiveImage] = useState(0);
   const reduceMotion = useReducedMotion();
   const { scrollYProgress } = useScroll();
   const scrollScale = useSpring(scrollYProgress, { stiffness: 120, damping: 24, mass: 0.2 });
@@ -176,6 +186,23 @@ export default function Portfolio(): JSX.Element {
     document.documentElement.dataset.theme = dark ? "dark" : "light";
     localStorage.setItem("portfolio-theme", dark ? "dark" : "light");
   }, [dark]);
+
+  useEffect(() => {
+    if (!galleryOpen) return;
+
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setGalleryOpen(false);
+      if (event.key === "ArrowRight") setActiveImage((value) => (value + 1) % achievements.length);
+      if (event.key === "ArrowLeft") setActiveImage((value) => (value - 1 + achievements.length) % achievements.length);
+    };
+
+    document.body.style.overflow = "hidden";
+    window.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.body.style.overflow = "";
+      window.removeEventListener("keydown", onKeyDown);
+    };
+  }, [galleryOpen]);
 
   return (
     <MotionConfig reducedMotion="user">
@@ -383,11 +410,41 @@ export default function Portfolio(): JSX.Element {
             </motion.div>
             <div className="gallery-clean">
               {achievements.map((src, i) => (
-                <motion.a key={src} href={src} target="_blank" rel="noreferrer" {...reveal((i % 4) * 0.04, 18)} whileHover={{ y: -6, scale: 1.015 }} transition={{ duration: 0.25 }}>
-                  <img src={src} alt={`Achievement ${i + 1}`} loading="lazy" />
-                </motion.a>
+                <motion.button
+                  key={src}
+                  type="button"
+                  className="gallery-card"
+                  onClick={() => {
+                    setActiveImage(i);
+                    setGalleryOpen(true);
+                  }}
+                  aria-label={`Open achievement photo ${i + 1}`}
+                  {...reveal((i % 4) * 0.04, 18)}
+                  whileHover={{ y: -5 }}
+                  transition={{ duration: 0.25 }}
+                >
+                  <span className="gallery-image-wrap">
+                    <img src={src} alt={`Achievement ${i + 1}`} loading="lazy" />
+                    <span className="gallery-overlay">
+                      <span className="gallery-index">{String(i + 1).padStart(2, "0")}</span>
+                      <span className="gallery-view">View photo ↗</span>
+                    </span>
+                  </span>
+                </motion.button>
               ))}
             </div>
+
+            {galleryOpen && (
+              <div className="gallery-lightbox" role="dialog" aria-modal="true" aria-label="Achievement photo viewer" onClick={() => setGalleryOpen(false)}>
+                <button type="button" className="gallery-close" onClick={() => setGalleryOpen(false)} aria-label="Close photo viewer"><Icon name="close" size={21} /></button>
+                <button type="button" className="gallery-nav gallery-prev" onClick={(event) => { event.stopPropagation(); setActiveImage((value) => (value - 1 + achievements.length) % achievements.length); }} aria-label="Previous photo">←</button>
+                <figure className="gallery-lightbox-figure" onClick={(event) => event.stopPropagation()}>
+                  <img src={achievements[activeImage]} alt={`Achievement ${activeImage + 1}`} />
+                  <figcaption><span>Achievement {String(activeImage + 1).padStart(2, "0")}</span><span>{activeImage + 1} / {achievements.length}</span></figcaption>
+                </figure>
+                <button type="button" className="gallery-nav gallery-next" onClick={(event) => { event.stopPropagation(); setActiveImage((value) => (value + 1) % achievements.length); }} aria-label="Next photo">→</button>
+              </div>
+            )}
           </section>
 
           <section id="contact" className="contact-band">
