@@ -83,7 +83,7 @@ async function callSingleGeminiModel(
 async function callGemini(
   apiKey: string,
   messages: ChatMessage[],
-  preferredModel = process.env.GEMINI_MODEL || "gemini-3.8-flash"
+  preferredModel = process.env.GEMINI_MODEL || "gemini-3.5-flash"
 ): Promise<{ text: string; modelUsed: string }> {
   try {
     const text = await callSingleGeminiModel(apiKey, messages, preferredModel, 7000);
@@ -159,7 +159,7 @@ async function callOpenAICompatible(
 export async function generateChatResponse(
   messages: ChatMessage[]
 ): Promise<AIResponse> {
-  const geminiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
+  const geminiKey = process.env.GEMINI_API_KEY || process.env.GEMINI_API || process.env.GOOGLE_API_KEY;
   const openAIKey = process.env.OPENAI_API_KEY;
   const groqKey = process.env.GROQ_API_KEY;
 
