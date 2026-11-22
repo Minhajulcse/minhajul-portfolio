@@ -1,5 +1,10 @@
 import type { NextApiRequest, NextApiResponse } from "next";
-import { generateChatResponse, ChatMessage, AIResponse } from "../../lib/ai-provider";
+import {
+  generateChatStream,
+  generateChatResponse,
+  ChatMessage,
+  AIResponse,
+} from "../../lib/ai-provider";
 
 export const config = {
   maxDuration: 60,
@@ -8,7 +13,7 @@ export const config = {
 // Simple in-memory sliding window rate limiter
 const ipRequests = new Map<string, { count: number; resetAt: number }>();
 const RATE_LIMIT_WINDOW_MS = 60 * 1000; // 1 minute
-const MAX_REQUESTS_PER_WINDOW = 20;
+const MAX_REQUESTS_PER_WINDOW = 30;
 
 function isRateLimited(ip: string): boolean {
   const now = Date.now();
@@ -61,7 +66,7 @@ export default async function handler(
   }
 
   try {
-    const { messages } = req.body;
+    const { messages, stream = true } = req.body;
 
     if (!Array.isArray(messages) || messages.length === 0) {
       return res.status(400).json({
@@ -71,13 +76,13 @@ export default async function handler(
       });
     }
 
-    // Sanitize & limit conversation history to the last 8 messages
+    // Sanitize & limit conversation history to the last 6-8 messages
     const sanitizedMessages: ChatMessage[] = messages
       .slice(-8)
       .map((m: unknown) => {
         const item = m as { role?: unknown; content?: unknown };
         const role: "assistant" | "user" = item.role === "assistant" ? "assistant" : "user";
-        const content = typeof item.content === "string" ? item.content.trim().slice(0, 800) : "";
+        const content = typeof item.content === "string" ? item.content.trim().slice(0, 500) : "";
         return { role, content };
       })
       .filter((m) => m.content.length > 0);
@@ -90,6 +95,24 @@ export default async function handler(
       });
     }
 
+    // Streaming mode (SSE)
+    if (stream) {
+      res.writeHead(200, {
+        "Content-Type": "text/event-stream; charset=utf-8",
+        "Cache-Control": "no-cache, no-transform",
+        Connection: "keep-alive",
+        "X-Accel-Buffering": "no",
+      });
+
+      for await (const chunk of generateChatStream(sanitizedMessages)) {
+        res.write(`data: ${JSON.stringify(chunk)}\n\n`);
+      }
+      res.write("data: [DONE]\n\n");
+      res.end();
+      return;
+    }
+
+    // Non-streaming fallback mode
     const aiResult = await generateChatResponse(sanitizedMessages);
 
     if (!aiResult.success) {
@@ -105,10 +128,13 @@ export default async function handler(
     return res.status(200).json(aiResult);
   } catch (error: unknown) {
     console.error("[API/chat handler error]:", error);
-    return res.status(500).json({
-      success: false,
-      code: "PROVIDER_ERROR",
-      error: "Internal server error occurred while processing your request.",
-    });
+    if (!res.headersSent) {
+      return res.status(500).json({
+        success: false,
+        code: "PROVIDER_ERROR",
+        error: "Our AI assistant is temporarily unavailable. Please try again in a moment.",
+      });
+    }
+    res.end();
   }
 }

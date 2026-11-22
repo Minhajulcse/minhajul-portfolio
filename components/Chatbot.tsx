@@ -114,6 +114,7 @@ export default function Chatbot(): JSX.Element {
   const [isMinimized, setIsMinimized] = useState(false);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
+  const [isWaitingForFirstChunk, setIsWaitingForFirstChunk] = useState(false);
   const [messages, setMessages] = useState<Message[]>([
     {
       id: "welcome-1",
@@ -184,73 +185,155 @@ export default function Chatbot(): JSX.Element {
     setMessages(newMessages);
     setInput("");
     setLoading(true);
+    setIsWaitingForFirstChunk(true);
 
     try {
       const historyPayload = newMessages
         .filter((m) => !m.error)
+        .slice(-8)
         .map((m) => ({
           role: m.role,
-          content: m.content,
+          content: m.content.slice(0, 500),
         }));
 
-      const sendRequest = async () => {
-        const res = await fetch("/api/chat", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ messages: historyPayload }),
-        });
-        const data = await res.json().catch(() => ({}));
-        return { res, data };
-      };
+      const res = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ messages: historyPayload, stream: true }),
+      });
 
-      let { res, data } = await sendRequest();
-
-      // If server returns temporary 503 / high demand, show retry indicator and attempt client retry
-      if (!res.ok && (res.status === 503 || data?.code === "SERVICE_UNAVAILABLE")) {
-        const retryNoticeId = `retry-status-${Date.now()}`;
-        setMessages((prev) => [
-          ...prev,
-          {
-            id: retryNoticeId,
-            role: "assistant",
-            content: "AI is temporarily busy. Retrying your request...",
-            timestamp: formatTime(),
-          },
-        ]);
-
-        await new Promise((resolve) => setTimeout(resolve, 2000));
-        const retryResult = await sendRequest();
-        res = retryResult.res;
-        data = retryResult.data;
-
-        // Clean up the temporary retry notice
-        setMessages((prev) => prev.filter((m) => m.id !== retryNoticeId));
-      }
-
-      if (!res.ok || !data?.success) {
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        setIsWaitingForFirstChunk(false);
         setMessages((prev) => [
           ...prev,
           {
             id: `error-${Date.now()}`,
             role: "assistant",
             error: true,
-            content: sanitizeErrorMessage(data?.error, res.status === 503),
+            content: sanitizeErrorMessage(errorData?.error, res.status === 503),
             timestamp: formatTime(),
           },
         ]);
+        return;
+      }
+
+      const contentType = res.headers.get("content-type") || "";
+      if (contentType.includes("text/event-stream") && res.body) {
+        const reader = res.body.getReader();
+        const decoder = new TextDecoder();
+        let accumulatedText = "";
+        const assistantMessageId = `assistant-${Date.now()}`;
+        let messageAdded = false;
+        let buffer = "";
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          buffer += decoder.decode(value, { stream: true });
+          const parts = buffer.split("\n\n");
+          buffer = parts.pop() || "";
+
+          for (const part of parts) {
+            const lines = part.split("\n");
+            for (const line of lines) {
+              if (line.startsWith("data: ")) {
+                const dataStr = line.slice(6).trim();
+                if (dataStr === "[DONE]") {
+                  break;
+                }
+                try {
+                  const chunk = JSON.parse(dataStr);
+                  if (chunk.type === "token" && chunk.text) {
+                    accumulatedText += chunk.text;
+                    const currentText = accumulatedText;
+
+                    if (!messageAdded) {
+                      messageAdded = true;
+                      setIsWaitingForFirstChunk(false);
+                      setMessages((prev) => [
+                        ...prev,
+                        {
+                          id: assistantMessageId,
+                          role: "assistant",
+                          content: currentText,
+                          timestamp: formatTime(),
+                        },
+                      ]);
+                    } else {
+                      setMessages((prev) =>
+                        prev.map((m) =>
+                          m.id === assistantMessageId
+                            ? { ...m, content: currentText }
+                            : m
+                        )
+                      );
+                    }
+                  } else if (chunk.type === "error") {
+                    setIsWaitingForFirstChunk(false);
+                    setMessages((prev) => [
+                      ...prev,
+                      {
+                        id: `error-${Date.now()}`,
+                        role: "assistant",
+                        error: true,
+                        content: sanitizeErrorMessage(chunk.error),
+                        timestamp: formatTime(),
+                      },
+                    ]);
+                  }
+                } catch {
+                  // Partial JSON, ignore
+                }
+              }
+            }
+          }
+        }
+
+        if (!messageAdded) {
+          setIsWaitingForFirstChunk(false);
+          setMessages((prev) => [
+            ...prev,
+            {
+              id: `error-${Date.now()}`,
+              role: "assistant",
+              error: true,
+              content:
+                "Our AI assistant is temporarily unavailable. Please try again in a moment.",
+              timestamp: formatTime(),
+            },
+          ]);
+        }
       } else {
-        setMessages((prev) => [
-          ...prev,
-          {
-            id: `assistant-${Date.now()}`,
-            role: "assistant",
-            content: data.message,
-            timestamp: formatTime(),
-          },
-        ]);
+        const data = await res.json().catch(() => ({}));
+        setIsWaitingForFirstChunk(false);
+        if (!data?.success) {
+          setMessages((prev) => [
+            ...prev,
+            {
+              id: `error-${Date.now()}`,
+              role: "assistant",
+              error: true,
+              content: sanitizeErrorMessage(data?.error, res.status === 503),
+              timestamp: formatTime(),
+            },
+          ]);
+        } else {
+          setMessages((prev) => [
+            ...prev,
+            {
+              id: `assistant-${Date.now()}`,
+              role: "assistant",
+              content: data.message,
+              timestamp: formatTime(),
+            },
+          ]);
+        }
       }
     } catch (err) {
       console.error("Chat error:", err);
+      setIsWaitingForFirstChunk(false);
       setMessages((prev) => [
         ...prev,
         {
@@ -264,6 +347,7 @@ export default function Chatbot(): JSX.Element {
       ]);
     } finally {
       setLoading(false);
+      setIsWaitingForFirstChunk(false);
     }
   };
 
@@ -439,7 +523,7 @@ export default function Chatbot(): JSX.Element {
                   ))}
 
                   {/* Loading indicator */}
-                  {loading && (
+                  {loading && isWaitingForFirstChunk && (
                     <motion.div
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}

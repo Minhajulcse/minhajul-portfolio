@@ -6,6 +6,15 @@ export interface ChatMessage {
   content: string;
 }
 
+export interface StreamChunk {
+  type: "token" | "meta" | "done" | "error";
+  text?: string;
+  model?: string;
+  error?: string;
+  ttftMs?: number;
+  totalMs?: number;
+}
+
 export interface AIResponse {
   success: boolean;
   message?: string;
@@ -19,6 +28,11 @@ export interface AIResponse {
     | "SERVICE_UNAVAILABLE";
   provider?: string;
   model?: string;
+  metrics?: {
+    ttftMs?: number;
+    totalMs?: number;
+    modelUsed?: string;
+  };
 }
 
 export interface ErrorClassification {
@@ -26,23 +40,16 @@ export interface ErrorClassification {
   is503: boolean;
   is429: boolean;
   isQuotaExhausted: boolean;
-  retryAfterMs?: number;
   cleanMessage: string;
 }
 
-/**
- * Classifies API errors into actionable categories (503 high demand, 429 rate limit/quota, etc.)
- * and sanitizes error messages so raw JSON/keys are never leaked.
- */
 export function classifyError(err: unknown): ErrorClassification {
-  const error = err as Error & { status?: number; code?: number | string };
+  const error = err as Error & { status?: number };
   let status = typeof error.status === "number" ? error.status : undefined;
   let rawMessage = error?.message || "";
   let cleanMessage = rawMessage;
   let isQuotaExhausted = false;
-  let retryAfterMs: number | undefined;
 
-  // Try parsing JSON error strings (e.g. from Google API: {"error":{"code":503,...}})
   try {
     const json = JSON.parse(rawMessage);
     if (json?.error) {
@@ -56,11 +63,10 @@ export function classifyError(err: unknown): ErrorClassification {
       }
     }
   } catch {
-    // Not JSON string
+    // Not JSON
   }
 
   const lower = cleanMessage.toLowerCase();
-
   const is503 =
     status === 503 ||
     lower.includes("503") ||
@@ -73,26 +79,15 @@ export function classifyError(err: unknown): ErrorClassification {
   const is429 =
     status === 429 ||
     lower.includes("429") ||
-    lower.includes("too many requests") ||
     lower.includes("resource_exhausted") ||
     lower.includes("rate limit") ||
     lower.includes("quota");
-
-  // Check for Retry-After hints (e.g. "retry after 3s")
-  const match = lower.match(/retry(?:-|\s+)after\s+(\d+)/);
-  if (match) {
-    const seconds = parseInt(match[1], 10);
-    if (!isNaN(seconds) && seconds > 0) {
-      retryAfterMs = seconds * 1000;
-    }
-  }
 
   return {
     status,
     is503,
     is429,
     isQuotaExhausted,
-    retryAfterMs,
     cleanMessage,
   };
 }
@@ -102,230 +97,180 @@ function sleep(ms: number): Promise<void> {
 }
 
 /**
- * Calculates exponential backoff with small random jitter:
- * Attempt 0 -> ~1000ms
- * Attempt 1 -> ~2000ms
- * Attempt 2 -> ~4000ms
+ * Short jittered delay for 503 retry (300ms - 700ms)
  */
-function calculateBackoffWithJitter(attempt: number, baseMs = 1000): number {
-  const exponential = baseMs * Math.pow(2, attempt);
-  const jitter = Math.floor(Math.random() * 500); // 0-500ms random jitter
-  return exponential + jitter;
+function getFastJitterMs(): number {
+  return Math.floor(300 + Math.random() * 400);
 }
 
 /**
- * Executes a single generateContent request against the official @google/genai SDK
- * with an individual per-attempt abort timeout.
+ * Generates streaming response from Gemini using official @google/genai SDK
+ * with fast 503 single-retry and immediate fallback to secondary model.
  */
-async function generateWithSingleModel(
-  ai: GoogleGenAI,
-  model: string,
-  contents: { role: string; parts: { text: string }[] }[],
-  systemPrompt: string,
-  timeoutMs = 10000
-): Promise<string> {
-  const response = await ai.models.generateContent({
-    model,
-    contents,
-    config: {
-      systemInstruction: systemPrompt,
-      temperature: 0.35,
-      maxOutputTokens: 1000,
-      abortSignal: AbortSignal.timeout(timeoutMs),
-    },
-  });
+export async function* generateChatStream(
+  messages: ChatMessage[]
+): AsyncGenerator<StreamChunk, void, unknown> {
+  const geminiKey =
+    process.env.GEMINI_API_KEY ||
+    process.env.GEMINI_API ||
+    process.env.GOOGLE_API_KEY;
 
-  const text = response.text?.trim();
-  if (!text) {
-    throw new Error("No text response received from model.");
+  if (!geminiKey) {
+    yield {
+      type: "error",
+      error:
+        "The AI assistant is temporarily unavailable because the backend API key is not configured.",
+    };
+    return;
   }
-  return text;
-}
 
-/**
- * Calls Google Gemini API with automatic exponential retry on HTTP 503/high-demand
- * and automatic fallback to a resilient secondary model if primary fails.
- */
-async function callGemini(
-  apiKey: string,
-  messages: ChatMessage[],
-  preferredModel = process.env.GEMINI_MODEL || "gemini-3.8-flash",
-  fallbackModel = process.env.GEMINI_FALLBACK_MODEL || "gemini-3.5-flash-lite"
-): Promise<{ text: string; modelUsed: string }> {
-  const ai = new GoogleGenAI({ apiKey });
+  const preferredModel = process.env.GEMINI_MODEL || "gemini-3.5-flash-lite";
+  const fallbackModel = process.env.GEMINI_FALLBACK_MODEL || "gemini-3.5-flash";
+
+  const ai = new GoogleGenAI({ apiKey: geminiKey });
   const systemPrompt = getSystemPrompt();
 
-  const contents = messages.map((m) => ({
+  // Keep last 6-8 relevant conversation messages
+  const sanitizedMessages = messages.slice(-6).map((m) => ({
     role: m.role === "assistant" ? "model" : "user",
-    parts: [{ text: m.content }],
+    parts: [{ text: m.content.slice(0, 500) }],
   }));
 
-  let lastError: unknown;
+  const requestStartTime = Date.now();
+  console.info(`[Gemini Stream] Request received at ${new Date(requestStartTime).toISOString()}`);
 
-  // Step 1: Attempt Preferred Model with up to 3 retries for 503 / high demand
-  const maxPreferredRetries = 3;
-  for (let attempt = 0; attempt < maxPreferredRetries; attempt++) {
-    try {
-      console.info(
-        `[Gemini API] Requesting preferred model "${preferredModel}" (attempt ${attempt + 1}/${maxPreferredRetries})`
-      );
-      const text = await generateWithSingleModel(
-        ai,
-        preferredModel,
-        contents,
-        systemPrompt,
-        10000
-      );
-      return { text, modelUsed: preferredModel };
-    } catch (err: unknown) {
-      lastError = err;
-      const classification = classifyError(err);
-      console.warn(
-        `[Gemini API] Preferred model "${preferredModel}" attempt ${attempt + 1} failed: ${classification.cleanMessage}`
-      );
+  let activeModel = preferredModel;
+  let firstTokenEmitted = false;
+  let ttftMs: number | undefined;
 
-      // Handle 429 Rate limits / Quota
-      if (classification.is429) {
-        if (classification.isQuotaExhausted) {
-          console.warn(
-            `[Gemini API] Quota exhausted for "${preferredModel}". Bypassing retries and falling back immediately.`
-          );
-          break;
-        }
+  // Generator execution helper for a specific model
+  async function* attemptModelStream(
+    modelName: string,
+    timeoutMs = 9000
+  ): AsyncGenerator<string, void, unknown> {
+    const stream = await ai.models.generateContentStream({
+      model: modelName,
+      contents: sanitizedMessages,
+      config: {
+        systemInstruction: systemPrompt,
+        temperature: 0.35,
+        maxOutputTokens: 400,
+        abortSignal: AbortSignal.timeout(timeoutMs),
+      },
+    });
 
-        // Per-minute rate limit: wait if Retry-After is short, otherwise move to fallback
-        const delay =
-          classification.retryAfterMs || calculateBackoffWithJitter(attempt);
-        if (delay <= 5000 && attempt < maxPreferredRetries - 1) {
-          console.info(
-            `[Gemini API] Rate limit encountered. Waiting ${delay}ms before retry...`
-          );
-          await sleep(delay);
-          continue;
-        } else {
-          break;
-        }
-      }
-
-      // Handle 503 / High Demand / Timeout
-      if (classification.is503) {
-        if (attempt < maxPreferredRetries - 1) {
-          const delay = calculateBackoffWithJitter(attempt);
-          console.info(
-            `[Gemini API] Model "${preferredModel}" returned 503/high demand. Backing off for ${delay}ms before retry ${attempt + 2}...`
-          );
-          await sleep(delay);
-          continue;
-        }
-      } else {
-        // Non-transient error (e.g. 400 bad request, 404 model not found)
-        break;
+    for await (const chunk of stream) {
+      const text = chunk.text;
+      if (text) {
+        yield text;
       }
     }
   }
 
-  // Step 2: Automatic Model Fallback
-  // If primary model continues failing, attempt the configured fallback model(s)
-  const candidateFallbacks = [
-    fallbackModel,
-    // If preferred was 3.8 and fallback was 3.5-flash-lite, 3.5-flash is also a strong candidate
-    fallbackModel !== "gemini-3.5-flash" ? "gemini-3.5-flash" : "gemini-3.5-flash-lite",
-  ].filter((m, idx, arr) => m && m !== preferredModel && arr.indexOf(m) === idx);
+  // Attempt Preferred Model
+  let primaryFailed = false;
+  try {
+    for await (const token of attemptModelStream(preferredModel, 8000)) {
+      if (!firstTokenEmitted) {
+        firstTokenEmitted = true;
+        ttftMs = Date.now() - requestStartTime;
+        console.info(
+          `[Gemini Stream] TTFT (${preferredModel}): ${ttftMs}ms`
+        );
+        yield { type: "meta", model: preferredModel, ttftMs };
+      }
+      yield { type: "token", text: token };
+    }
+  } catch (err: unknown) {
+    // If tokens were already sent to client, we cannot cleanly restart from fallback
+    if (firstTokenEmitted) {
+      console.error("[Gemini Stream] Error mid-stream on preferred model:", err);
+      yield { type: "done", totalMs: Date.now() - requestStartTime };
+      return;
+    }
 
-  for (const fallback of candidateFallbacks) {
+    primaryFailed = true;
+    const classification = classifyError(err);
     console.warn(
-      `[Gemini API] Primary model "${preferredModel}" exhausted retries. Automatically falling back to "${fallback}"...`
+      `[Gemini Stream] Preferred model "${preferredModel}" failed: ${classification.cleanMessage}`
     );
 
-    const maxFallbackAttempts = 2;
-    for (let fAttempt = 0; fAttempt < maxFallbackAttempts; fAttempt++) {
-      try {
-        const text = await generateWithSingleModel(
-          ai,
-          fallback,
-          contents,
-          systemPrompt,
-          12000
-        );
-        return {
-          text,
-          modelUsed: `${preferredModel} (fallback: ${fallback})`,
-        };
-      } catch (fallbackErr: unknown) {
-        lastError = fallbackErr;
-        const fallbackClass = classifyError(fallbackErr);
-        console.warn(
-          `[Gemini API] Fallback model "${fallback}" attempt ${fAttempt + 1} failed: ${fallbackClass.cleanMessage}`
-        );
+    // If HTTP 503 / High Demand, perform at most ONE fast retry with 300-700ms jitter
+    if (classification.is503 && !classification.isQuotaExhausted) {
+      const jitterDelay = getFastJitterMs();
+      console.info(
+        `[Gemini Stream] 503 high demand. Performing single fast retry in ${jitterDelay}ms...`
+      );
+      await sleep(jitterDelay);
 
-        if (fallbackClass.is503 && fAttempt < maxFallbackAttempts - 1) {
-          const delay = calculateBackoffWithJitter(fAttempt);
-          console.info(
-            `[Gemini API] Fallback model "${fallback}" 503. Retrying in ${delay}ms...`
-          );
-          await sleep(delay);
-          continue;
+      try {
+        for await (const token of attemptModelStream(preferredModel, 8000)) {
+          if (!firstTokenEmitted) {
+            firstTokenEmitted = true;
+            ttftMs = Date.now() - requestStartTime;
+            console.info(
+              `[Gemini Stream] TTFT after fast retry (${preferredModel}): ${ttftMs}ms`
+            );
+            yield { type: "meta", model: preferredModel, ttftMs };
+          }
+          yield { type: "token", text: token };
         }
-        break;
+        primaryFailed = false;
+      } catch (retryErr: unknown) {
+        console.warn(
+          `[Gemini Stream] Fast retry on "${preferredModel}" failed. Immediately switching to fallback.`
+        );
       }
     }
   }
 
-  // If both preferred model and all fallback attempts fail, throw the classified error
-  throw lastError;
-}
+  // Attempt Fallback Model if primary failed before emitting tokens
+  if (primaryFailed && !firstTokenEmitted) {
+    activeModel = fallbackModel;
+    const fallbackStartTime = Date.now();
+    console.warn(
+      `[Gemini Stream] Activating fallback model "${fallbackModel}" at +${fallbackStartTime - requestStartTime}ms`
+    );
 
-/**
- * Calls OpenAI or OpenAI-compatible REST API (e.g., Groq, Together, OpenRouter)
- */
-async function callOpenAICompatible(
-  apiKey: string,
-  messages: ChatMessage[],
-  baseUrl = process.env.OPENAI_BASE_URL || "https://api.openai.com/v1",
-  model = process.env.OPENAI_MODEL || "gpt-4o-mini"
-): Promise<{ text: string; modelUsed: string }> {
-  const systemPrompt = getSystemPrompt();
-
-  const formattedMessages = [
-    { role: "system", content: systemPrompt },
-    ...messages.map((m) => ({
-      role: m.role === "assistant" ? "assistant" : "user",
-      content: m.content,
-    })),
-  ];
-
-  const response = await fetch(`${baseUrl.replace(/\/+$/, "")}/chat/completions`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify({
-      model,
-      messages: formattedMessages,
-      temperature: 0.35,
-      max_tokens: 1000,
-    }),
-    signal: AbortSignal.timeout(20000),
-  });
-
-  if (!response.ok) {
-    const errorData = await response.json().catch(() => ({}));
-    const errorMsg =
-      errorData?.error?.message || `API returned HTTP ${response.status}`;
-    throw new Error(errorMsg);
+    try {
+      for await (const token of attemptModelStream(fallbackModel, 12000)) {
+        if (!firstTokenEmitted) {
+          firstTokenEmitted = true;
+          ttftMs = Date.now() - requestStartTime;
+          console.info(
+            `[Gemini Stream] TTFT on fallback (${fallbackModel}): ${ttftMs}ms (total elapsed)`
+          );
+          yield {
+            type: "meta",
+            model: `${preferredModel} (fallback: ${fallbackModel})`,
+            ttftMs,
+          };
+        }
+        yield { type: "token", text: token };
+      }
+    } catch (fallbackErr: unknown) {
+      console.error(
+        `[Gemini Stream] Both primary and fallback models failed:`,
+        fallbackErr
+      );
+      yield {
+        type: "error",
+        error:
+          "Our AI assistant is temporarily unavailable. Please try again in a moment.",
+      };
+      return;
+    }
   }
 
-  const data = await response.json();
-  const text =
-    data?.choices?.[0]?.message?.content ||
-    "I'm sorry, I could not generate a response at this time.";
-
-  return { text, modelUsed: model };
+  const totalDurationMs = Date.now() - requestStartTime;
+  console.info(
+    `[Gemini Stream] Completed generation via ${activeModel} in ${totalDurationMs}ms (TTFT: ${ttftMs || 0}ms)`
+  );
+  yield { type: "done", totalMs: totalDurationMs, model: activeModel };
 }
 
 /**
- * Generate AI Response using whichever provider is configured
+ * Non-streaming fallback generation with single fast retry and fallback.
  */
 export async function generateChatResponse(
   messages: ChatMessage[]
@@ -334,76 +279,56 @@ export async function generateChatResponse(
     process.env.GEMINI_API_KEY ||
     process.env.GEMINI_API ||
     process.env.GOOGLE_API_KEY;
-  const openAIKey = process.env.OPENAI_API_KEY;
-  const groqKey = process.env.GROQ_API_KEY;
 
-  if (!geminiKey && !openAIKey && !groqKey) {
+  if (!geminiKey) {
     return {
       success: false,
       code: "API_KEY_MISSING",
       error:
-        "The AI assistant is temporarily unavailable because the server API key is not configured. Please ensure GEMINI_API_KEY is configured in your deployment environment.",
+        "The AI assistant is temporarily unavailable because the backend API key is not configured.",
     };
   }
 
-  try {
-    let replyText = "";
-    let providerName = "";
-    let modelName = "";
+  const preferredModel = process.env.GEMINI_MODEL || "gemini-3.5-flash-lite";
+  const fallbackModel = process.env.GEMINI_FALLBACK_MODEL || "gemini-3.5-flash";
 
-    if (geminiKey) {
-      providerName = "Gemini";
-      const result = await callGemini(geminiKey, messages);
-      replyText = result.text;
-      modelName = result.modelUsed;
-    } else if (openAIKey) {
-      providerName = "OpenAI";
-      const result = await callOpenAICompatible(openAIKey, messages);
-      replyText = result.text;
-      modelName = result.modelUsed;
-    } else if (groqKey) {
-      providerName = "Groq";
-      const result = await callOpenAICompatible(
-        groqKey,
-        messages,
-        "https://api.groq.com/openai/v1",
-        process.env.GROQ_MODEL || "llama-3.1-8b-instant"
-      );
-      replyText = result.text;
-      modelName = result.modelUsed;
+  const t0 = Date.now();
+  let accumulatedText = "";
+  let modelUsed = preferredModel;
+  let ttftMs: number | undefined;
+
+  try {
+    for await (const chunk of generateChatStream(messages)) {
+      if (chunk.type === "meta") {
+        modelUsed = chunk.model || modelUsed;
+        ttftMs = chunk.ttftMs;
+      } else if (chunk.type === "token" && chunk.text) {
+        accumulatedText += chunk.text;
+      } else if (chunk.type === "error") {
+        return {
+          success: false,
+          code: "SERVICE_UNAVAILABLE",
+          error: chunk.error,
+        };
+      }
     }
 
     return {
       success: true,
-      message: replyText.trim(),
-      provider: providerName,
-      model: modelName,
+      message: accumulatedText.trim(),
+      provider: "Gemini",
+      model: modelUsed,
+      metrics: {
+        ttftMs,
+        totalMs: Date.now() - t0,
+        modelUsed,
+      },
     };
   } catch (err: unknown) {
-    console.error("[AI Chat Provider Error]:", err);
-    const classification = classifyError(err);
-
-    if (classification.is503) {
-      return {
-        success: false,
-        code: "SERVICE_UNAVAILABLE",
-        error:
-          "Our AI assistant is temporarily unavailable. Please try again in a moment.",
-      };
-    }
-
-    if (classification.is429) {
-      return {
-        success: false,
-        code: "RATE_LIMITED",
-        error:
-          "Our AI assistant is currently experiencing high traffic. Please wait a moment before asking again.",
-      };
-    }
-
+    console.error("[generateChatResponse Error]:", err);
     return {
       success: false,
-      code: "PROVIDER_ERROR",
+      code: "SERVICE_UNAVAILABLE",
       error:
         "Our AI assistant is temporarily unavailable. Please try again in a moment.",
     };
