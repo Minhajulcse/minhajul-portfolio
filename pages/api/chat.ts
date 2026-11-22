@@ -76,13 +76,13 @@ export default async function handler(
       });
     }
 
-    // Sanitize & limit conversation history to the last 6-8 messages
+    // Sanitize & limit conversation history to the last 8 messages
     const sanitizedMessages: ChatMessage[] = messages
       .slice(-8)
       .map((m: unknown) => {
         const item = m as { role?: unknown; content?: unknown };
         const role: "assistant" | "user" = item.role === "assistant" ? "assistant" : "user";
-        const content = typeof item.content === "string" ? item.content.trim().slice(0, 500) : "";
+        const content = typeof item.content === "string" ? item.content.trim().slice(0, 1500) : "";
         return { role, content };
       })
       .filter((m) => m.content.length > 0);

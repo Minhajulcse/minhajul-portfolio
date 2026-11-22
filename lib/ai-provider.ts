@@ -1,5 +1,5 @@
 import { GoogleGenAI } from "@google/genai";
-import { getSystemPrompt } from "./knowledge";
+import { getKnowledgeContext, getSystemPrompt } from "./knowledge";
 
 export interface ChatMessage {
   role: "user" | "assistant" | "system";
@@ -128,12 +128,17 @@ export async function* generateChatStream(
   const fallbackModel = process.env.GEMINI_FALLBACK_MODEL || "gemini-3.5-flash";
 
   const ai = new GoogleGenAI({ apiKey: geminiKey });
-  const systemPrompt = getSystemPrompt();
+  const { systemPrompt, maxOutputTokens, detectedDomains, isCompleteRequest } =
+    getKnowledgeContext(messages);
 
-  // Keep last 6-8 relevant conversation messages
-  const sanitizedMessages = messages.slice(-6).map((m) => ({
+  console.info(
+    `[Gemini Stream] Detected domains: [${detectedDomains.join(", ")}], completeRequest: ${isCompleteRequest}, maxTokens: ${maxOutputTokens}`
+  );
+
+  // Keep last 8 relevant conversation messages
+  const sanitizedMessages = messages.slice(-8).map((m) => ({
     role: m.role === "assistant" ? "model" : "user",
-    parts: [{ text: m.content.slice(0, 500) }],
+    parts: [{ text: m.content.slice(0, 1500) }],
   }));
 
   const requestStartTime = Date.now();
@@ -143,18 +148,22 @@ export async function* generateChatStream(
   let firstTokenEmitted = false;
   let ttftMs: number | undefined;
 
+  // Stream timeout: allow up to 55s for large streams (e.g. all 142 contests), 35s for complete lists
+  const streamTimeoutMs =
+    maxOutputTokens >= 4000 ? 55000 : isCompleteRequest ? 35000 : 25000;
+
   // Generator execution helper for a specific model
   async function* attemptModelStream(
     modelName: string,
-    timeoutMs = 9000
+    timeoutMs = streamTimeoutMs
   ): AsyncGenerator<string, void, unknown> {
     const stream = await ai.models.generateContentStream({
       model: modelName,
       contents: sanitizedMessages,
       config: {
         systemInstruction: systemPrompt,
-        temperature: 0.35,
-        maxOutputTokens: 400,
+        temperature: 0.3,
+        maxOutputTokens: maxOutputTokens,
         abortSignal: AbortSignal.timeout(timeoutMs),
       },
     });
@@ -170,7 +179,7 @@ export async function* generateChatStream(
   // Attempt Preferred Model
   let primaryFailed = false;
   try {
-    for await (const token of attemptModelStream(preferredModel, 8000)) {
+    for await (const token of attemptModelStream(preferredModel, streamTimeoutMs)) {
       if (!firstTokenEmitted) {
         firstTokenEmitted = true;
         ttftMs = Date.now() - requestStartTime;
@@ -204,7 +213,7 @@ export async function* generateChatStream(
       await sleep(jitterDelay);
 
       try {
-        for await (const token of attemptModelStream(preferredModel, 8000)) {
+        for await (const token of attemptModelStream(preferredModel, streamTimeoutMs)) {
           if (!firstTokenEmitted) {
             firstTokenEmitted = true;
             ttftMs = Date.now() - requestStartTime;
@@ -233,7 +242,7 @@ export async function* generateChatStream(
     );
 
     try {
-      for await (const token of attemptModelStream(fallbackModel, 12000)) {
+      for await (const token of attemptModelStream(fallbackModel, streamTimeoutMs)) {
         if (!firstTokenEmitted) {
           firstTokenEmitted = true;
           ttftMs = Date.now() - requestStartTime;

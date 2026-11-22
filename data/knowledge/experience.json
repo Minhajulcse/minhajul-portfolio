@@ -1,0 +1,56 @@
+[
+  {
+    "title": "Lab Prefect – Programming for Problem Solving (PPS)",
+    "role": "Lab Prefect",
+    "organization": "Daffodil International University",
+    "location": "Ashulia, Dhaka, Bangladesh",
+    "period": "2024 – Present",
+    "type": "Academic Mentorship & Teaching",
+    "responsibilities": [
+      "Support the course faculty in laboratory classes and guide junior students through hands-on structured programming.",
+      "Teach C and C++ programming through conceptual hints and guided reasoning rather than simply giving away direct answers, fostering independent problem-solving skills.",
+      "Explain difficult algorithmic concepts including recursion, pointer arithmetic, memory management, and structured data with beginner-friendly visualizations.",
+      "Review student code submissions, assist with debugging, and advise students on competitive programming foundations."
+    ]
+  },
+  {
+    "title": "Problem Setter & Associate Judging Director – DIU ACM Lab",
+    "role": "Problem Setter & Associate Judging Director",
+    "organization": "Daffodil International University ACM Lab",
+    "location": "Ashulia, Dhaka, Bangladesh",
+    "period": "2024 – Present",
+    "type": "Contest Direction & Problem Setting",
+    "responsibilities": [
+      "Create, test, and validate original algorithmic problems for competitive programming contests.",
+      "Generate robust test cases (edge cases, boundary limits, corner cases) and write comprehensive solution editorials.",
+      "Manage judging workflows and live contest execution for university-wide competitions.",
+      "Set problems for the Take-Off Programming Contest (for 2nd-semester students) and Unlock The Algorithm.",
+      "Actively cultivate an enthusiastic and rigorous competitive programming culture across the department."
+    ]
+  },
+  {
+    "title": "Volunteer – National High School Programming Contest (NHSPC) Regional Round",
+    "role": "Regional Round Volunteer",
+    "organization": "National High School Programming Contest",
+    "location": "Bangladesh",
+    "period": "2026",
+    "type": "Community Volunteering",
+    "responsibilities": [
+      "Assisted in on-site operations for the regional round of the National High School Programming Contest.",
+      "Supported participating school and college students with lab setup, contest platform navigation, and problem logistics.",
+      "Helped foster interest in computing and problem-solving among young students in Bangladesh."
+    ]
+  },
+  {
+    "title": "Volunteer – ICPC 2024 Dhaka Regional Contest",
+    "role": "Contest Operations Volunteer",
+    "organization": "ICPC Dhaka Regional",
+    "location": "Bangladesh",
+    "period": "2024",
+    "type": "Event Volunteering",
+    "responsibilities": [
+      "Supported the organizing committee in hosting the International Collegiate Programming Contest Dhaka Regional.",
+      "Managed on-site contest floor operations, team workstations, and judging logistics for university teams across Bangladesh."
+    ]
+  }
+]

@@ -1,0 +1,47 @@
+{
+  "institution": "Daffodil International University (DIU)",
+  "campus": "Ashulia, Dhaka, Bangladesh",
+  "department": "Department of Computer Science & Engineering (CSE)",
+  "degree": "Bachelor of Science (B.Sc.) in Computer Science & Engineering",
+  "timeline": "2023 – 2027 (Expected Graduation)",
+  "cgpa": "3.87",
+  "cgpaScale": "4.00",
+  "academicStatus": "High Academic Standing / Top Percentile",
+  "highlights": [
+    "Maintained outstanding academic record with a cumulative GPA of 3.87 / 4.00",
+    "Appointed as Programming for Problem Solving (PPS) Lab Prefect to mentor junior batches in programming labs",
+    "Appointed as Problem Setter & Associate Judging Director at DIU ACM Lab",
+    "Active participant and leader in university competitive programming community"
+  ],
+  "coursework": [
+    {
+      "area": "Algorithms & Theory",
+      "courses": [
+        "Data Structures & Algorithms",
+        "Discrete Mathematics",
+        "Theory of Computation",
+        "Compiler Design",
+        "Graph Theory",
+        "Number Theory"
+      ]
+    },
+    {
+      "area": "Systems & Software",
+      "courses": [
+        "Object-Oriented Programming (OOP in C++ & Java)",
+        "Database Management Systems (DBMS & SQL)",
+        "Operating Systems & Linux Shell Scripting",
+        "Software Engineering"
+      ]
+    },
+    {
+      "area": "AI & Data Science",
+      "courses": [
+        "Machine Learning",
+        "Deep Learning & Neural Networks",
+        "Numerical Methods",
+        "Scientific Computing (NumPy, Pandas)"
+      ]
+    }
+  ]
+}

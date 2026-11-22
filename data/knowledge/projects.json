@@ -1,0 +1,172 @@
+[
+  {
+    "id": "routine-hub",
+    "number": "01",
+    "title": "Routine Hub – DIU CSE Routine Scraper",
+    "role": "Full-Stack Developer & Creator",
+    "type": "Personal Project · Full-Stack Web App",
+    "category": "Full-Stack Web App",
+    "highlight": true,
+    "summary": "Built a routine-scraping website for the Daffodil International University (DIU) CSE Department that helps students quickly find and view section-wise class routines instead of manually searching through massive unstructured routine files.",
+    "features": [
+      "Automated web scraping of official DIU CSE class routine data",
+      "Fast section-wise search, filtering, and room schedule queries",
+      "Clean, responsive user interface built with Next.js and Tailwind CSS",
+      "Database persistence and API caching using Supabase and Prisma"
+    ],
+    "techStack": [
+      "Next.js",
+      "TypeScript",
+      "Web Scraping",
+      "Supabase",
+      "Prisma",
+      "Tailwind CSS"
+    ],
+    "githubUrl": "https://github.com/Minhajulcse"
+  },
+  {
+    "id": "custom-compiler-design",
+    "number": "02",
+    "title": "Custom Compiler Design",
+    "role": "Team Lead & Lead Systems Architect",
+    "type": "Compiler Lab · Team Lead",
+    "category": "Systems & Compilers",
+    "highlight": true,
+    "summary": "Led a team to build a working custom compiler around Context-Free Grammar (CFG) rules, lexical analysis, and core compiler design concepts.",
+    "features": [
+      "Lexical analyzer / tokenizer to process input tokens and keywords",
+      "Parser based on Context-Free Grammar (CFG) rules and syntax tree generation",
+      "Error handling and symbol table management for variable scopes",
+      "Clear validation and syntactic analysis"
+    ],
+    "techStack": [
+      "C",
+      "C++",
+      "CFG",
+      "Compiler Design",
+      "Lexical Analysis"
+    ],
+    "githubUrl": "https://github.com/Minhajulcse"
+  },
+  {
+    "id": "hospital-management-system",
+    "number": "03",
+    "title": "Hospital Management System",
+    "role": "Team Lead & Database Architect",
+    "type": "DBMS Lab · Team Lead",
+    "category": "Database Systems",
+    "highlight": false,
+    "summary": "Built a robust relational database management system using SQL to handle complex hospital operations including patient records, doctor scheduling, and prescriptions.",
+    "features": [
+      "Relational schema design with normalized tables, foreign keys, and integrity constraints",
+      "Patient record management, admissions, and history tracking",
+      "Doctor appointment schedules, specialization tracking, and consultation records",
+      "Pharmacy and medicine prescription management workflow"
+    ],
+    "techStack": [
+      "SQL",
+      "Relational Database Design",
+      "DBMS",
+      "Schema Architecture"
+    ],
+    "githubUrl": "https://github.com/Minhajulcse"
+  },
+  {
+    "id": "banking-system",
+    "number": "04",
+    "title": "Banking System",
+    "role": "Lead Developer",
+    "type": "Data Structure & OOP Labs · Lead Developer",
+    "category": "Software Engineering",
+    "highlight": false,
+    "summary": "Developed banking software in C for account creation, deposits, and semester fee payments, and later refactored and extended the application using Object-Oriented Programming (OOP) in C++.",
+    "features": [
+      "Secure user account creation, authentication, and balance tracking",
+      "Deposit, withdrawal, and semester fee transaction processing",
+      "Refactored using OOP principles (Encapsulation, Inheritance, Classes) for modularity",
+      "Robust input validation and file-based state persistence"
+    ],
+    "techStack": [
+      "C",
+      "C++",
+      "OOP",
+      "Data Structures",
+      "File Handling"
+    ],
+    "githubUrl": "https://github.com/Minhajulcse"
+  },
+  {
+    "id": "river-crossing-puzzle-game",
+    "number": "05",
+    "title": "River Crossing Puzzle Game",
+    "role": "Solo Game Developer",
+    "type": "Personal Project · Interactive Application",
+    "category": "Interactive Application",
+    "highlight": false,
+    "summary": "Created an interactive river-crossing puzzle game where players solve classic constraint-based problem-solving challenges with visual characters, move validation, and level progression.",
+    "features": [
+      "Interactive constraint-satisfaction game logic in JavaScript",
+      "Visual river crossing animations, character movements, and boat capacity checks",
+      "Rule enforcement (preventing predator-prey conflicts when left alone)",
+      "Level progression, victory/defeat state handling, and clean UI"
+    ],
+    "techStack": [
+      "JavaScript",
+      "Game Logic",
+      "Interactive UI",
+      "HTML5",
+      "CSS3"
+    ],
+    "githubUrl": "https://github.com/Minhajulcse"
+  },
+  {
+    "id": "command-line-file-manager",
+    "number": "06",
+    "title": "Command Line File Manager",
+    "role": "Solo Systems Developer",
+    "type": "Operating Systems Lab · Solo Developer",
+    "category": "Systems & Tooling",
+    "highlight": false,
+    "summary": "Built a lightweight, interactive file manager that runs completely inside the command line using Bash scripting in a POSIX Linux environment.",
+    "features": [
+      "File navigation, directory listing, creation, renaming, and deletion",
+      "Permission viewing and file inspection without exiting the CLI interface",
+      "Built strictly with standard Bash and core POSIX Unix utilities",
+      "Designed for speed, low overhead, and ease of use in headless server environments"
+    ],
+    "techStack": [
+      "Bash",
+      "Linux",
+      "Shell Scripting",
+      "CLI Tools",
+      "POSIX"
+    ],
+    "githubUrl": "https://github.com/Minhajulcse"
+  },
+  {
+    "id": "portfolio-and-ai-assistant",
+    "number": "07",
+    "title": "Portfolio Website & Intelligent AI Assistant",
+    "role": "Lead Full-Stack & AI Engineer",
+    "type": "Production Web Application",
+    "category": "Full-Stack & Applied AI",
+    "highlight": true,
+    "summary": "Personal portfolio website featuring an intelligent, query-aware AI assistant powered by Google Gemini SDK with Server-Sent Events (SSE) streaming, sub-second TTFT, automatic retries, and comprehensive domain knowledge.",
+    "features": [
+      "Server-Sent Events (SSE) streaming architecture for instant real-time response rendering",
+      "Adaptive output limits (up to 2500 tokens) with query-aware dynamic knowledge retrieval",
+      "Official Google GenAI SDK integration with gemini-3.5-flash-lite and gemini-3.5-flash fallback",
+      "Fluent bilingual (Bangla & English) understanding and response generation",
+      "Fullscreen interactive achievement photo gallery with keyboard navigation"
+    ],
+    "techStack": [
+      "Next.js",
+      "React",
+      "TypeScript",
+      "Tailwind CSS",
+      "Google GenAI SDK",
+      "Vercel Serverless"
+    ],
+    "githubUrl": "https://github.com/Minhajulcse/minhajul-portfolio"
+  }
+]

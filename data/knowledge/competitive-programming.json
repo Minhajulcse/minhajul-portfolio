@@ -1,0 +1,83 @@
+{
+  "overview": {
+    "handle": "NoObMin",
+    "primaryLanguage": "C++ (C++17 / C++20 with STL)",
+    "startYear": "2023",
+    "totalRatedContests": 175,
+    "platformsSummary": {
+      "codeforces": {
+        "handle": "NoObMin",
+        "maxRating": 1432,
+        "currentRank": "Specialist",
+        "badge": "Cyan (Specialist)",
+        "ratedContests": 142,
+        "profileUrl": "https://codeforces.com/profile/NoObMin"
+      },
+      "atcoder": {
+        "handle": "NoObMin",
+        "maxRating": 828,
+        "currentRank": "Green",
+        "ratedContests": 33,
+        "profileUrl": "https://atcoder.jp/users/NoObMin"
+      },
+      "codechef": {
+        "handle": "NoObMin",
+        "maxRating": 1429,
+        "currentRank": "Div 3 / 2-Star",
+        "profileUrl": "https://www.codechef.com/users/NoObMin"
+      }
+    }
+  },
+  "journeyNarrative": "Minhajul began his competitive programming journey in 2023 as a freshman at Daffodil International University. Driven by a strong curiosity for algorithms and analytical problem solving, he chose C++ as his core language and embarked on intensive daily practice on Codeforces, AtCoder, and CodeChef under the handle NoObMin. Through consistent participation in 142 rated Codeforces rounds and 33 AtCoder Beginner Contests, he climbed the ranks to achieve the prestigious Specialist title (rating 1432) on Codeforces and Green tier (rating 828) on AtCoder. Beyond online platforms, Minhajul represented DIU in major collegiate competitions including the ICPC 2025 Dhaka Regional and the NSU IUPC 2026. He demonstrated excellence in internal university contests, finishing 2nd in Unlock The Algorithm 2024 preliminaries (and 7th in the finals), 4th in CodeTrap 2024, 9th in Breaking Code 2.0 (MBSTU), and 17th in Take-Off 2023. Recognizing his algorithmic expertise, DIU ACM Lab appointed him as a Problem Setter and Associate Judging Director, where he now creates contest problems and mentors the next generation of competitive programmers.",
+  "majorContestResults": [
+    {
+      "name": "ICPC 2025 Dhaka Regional Contest",
+      "result": "Dhaka Regional Participant",
+      "year": "2025"
+    },
+    {
+      "name": "NSU Inter-University Programming Contest (IUPC) 2026",
+      "result": "Onsite Participant",
+      "year": "2026"
+    },
+    {
+      "name": "Unlock The Algorithm 2024 Preliminary Round",
+      "result": "2nd Place",
+      "year": "2024"
+    },
+    {
+      "name": "Unlock The Algorithm 2024 Final Round",
+      "result": "7th Place",
+      "year": "2024"
+    },
+    {
+      "name": "CodeTrap 2024",
+      "result": "4th Place",
+      "year": "2024"
+    },
+    {
+      "name": "Breaking Code 2.0 (MBSTU)",
+      "result": "9th Place",
+      "year": "2024"
+    },
+    {
+      "name": "Take-Off Programming Contest 2023",
+      "result": "17th Place",
+      "year": "2023"
+    },
+    {
+      "name": "ICPC 2024 Preliminary Contest",
+      "result": "Rank 192",
+      "year": "2024"
+    }
+  ],
+  "topAlgorithmicTopics": [
+    "Dynamic Programming (1D, 2D, Bitmask, Tree DP)",
+    "Graph Algorithms (BFS, DFS, Dijkstra, TopoSort, MST, Cycle Detection)",
+    "Number Theory (Primes, GCD, Modular Arithmetic, Sieve of Eratosthenes)",
+    "Binary Search & Two Pointers (Monotonic Functions, Optimization)",
+    "Greedy Algorithms & Constructive Problems",
+    "Data Structures (Disjoint Set Union, Segment Trees, Fenwick Trees, Heaps)",
+    "Combinatorics & Math Foundations"
+  ]
+}

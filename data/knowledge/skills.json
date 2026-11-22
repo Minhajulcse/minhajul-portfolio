@@ -1,0 +1,89 @@
+{
+  "programmingLanguages": [
+    {
+      "name": "C",
+      "proficiency": "Advanced / High-level mastery (used extensively for teaching & problem solving)"
+    },
+    {
+      "name": "C++",
+      "proficiency": "Advanced (primary language for competitive programming, STL, algorithms)"
+    },
+    {
+      "name": "Python",
+      "proficiency": "Proficient (data science, machine learning, scripting)"
+    },
+    {
+      "name": "SQL",
+      "proficiency": "Proficient (database modeling, queries, relational schema in DBMS)"
+    },
+    {
+      "name": "JavaScript",
+      "proficiency": "Proficient (interactive web apps, game development, Node.js)"
+    },
+    {
+      "name": "TypeScript",
+      "proficiency": "Proficient (full-stack web apps, Next.js, strongly-typed systems)"
+    },
+    {
+      "name": "Bash / Shell",
+      "proficiency": "Proficient (Linux environment, CLI tools, automated scripts)"
+    }
+  ],
+  "algorithmsAndDataStructures": [
+    "Dynamic Programming (DP)",
+    "Graph Theory (BFS, DFS, Dijkstra, Tree Algorithms, Shortest Paths)",
+    "Number Theory & Modular Arithmetic (Sieve, GCD, Modular Inverse, Prime Factorization)",
+    "Binary Search & Two Pointers",
+    "Greedy Algorithms",
+    "Disjoint Set Union (DSU / Union-Find)",
+    "Segment Trees & Fenwick Trees (Binary Indexed Trees)",
+    "Prefix Sums & Difference Arrays",
+    "Bit Manipulation",
+    "String Processing & Hashing"
+  ],
+  "computerScienceFoundations": [
+    "Data Structures & Algorithms",
+    "Object-Oriented Programming (OOP) - Encapsulation, Inheritance, Polymorphism, Abstraction",
+    "Context-Free Grammar (CFG) & Compiler Construction (Lexical Analysis, Parsing)",
+    "Relational Database Management Systems (RDBMS & SQL)",
+    "Operating Systems Principles (POSIX, Processes, Shell Environments)"
+  ],
+  "machineLearningAndDataScience": [
+    "Machine Learning Fundamentals",
+    "Deep Learning & Neural Networks",
+    "scikit-learn",
+    "PyTorch",
+    "NumPy",
+    "Pandas",
+    "Seaborn & Data Visualization"
+  ],
+  "webAndModernTechnologies": [
+    "Next.js (App Router, Pages Router, Serverless Functions)",
+    "React",
+    "TypeScript",
+    "Tailwind CSS",
+    "Supabase (BaaS, PostgreSQL, Auth)",
+    "Prisma ORM",
+    "REST APIs & Server-Sent Events (SSE)",
+    "Web Scraping (Automated Data Extraction)",
+    "Google GenAI SDK (@google/genai)"
+  ],
+  "systemsAndTools": [
+    "Linux / POSIX Shell",
+    "Bash",
+    "Git & GitHub (Version control, collaboration, CI workflows)",
+    "Vercel (Serverless deployment, edge configurations)",
+    "VS Code"
+  ],
+  "contestAndProblemSetting": [
+    "Problem Setting (Ideation, Statement Writing, Test Case Generation)",
+    "Problem Testing & Validation",
+    "Contest Judging & Associate Judging Director workflows",
+    "Polygon / Contest Platform Management",
+    "Teaching via hints & pedagogical problem-solving"
+  ],
+  "productivityTools": [
+    "Microsoft Office: Excel, Word, PowerPoint",
+    "Google Workspace: Docs, Sheets, Slides"
+  ]
+}
