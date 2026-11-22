@@ -93,7 +93,12 @@ export default async function handler(
     const aiResult = await generateChatResponse(sanitizedMessages);
 
     if (!aiResult.success) {
-      const statusCode = aiResult.code === "API_KEY_MISSING" ? 503 : 500;
+      const statusCode =
+        aiResult.code === "API_KEY_MISSING" || aiResult.code === "SERVICE_UNAVAILABLE"
+          ? 503
+          : aiResult.code === "RATE_LIMITED"
+          ? 429
+          : 500;
       return res.status(statusCode).json(aiResult);
     }
 

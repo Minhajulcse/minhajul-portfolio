@@ -145,6 +145,30 @@ export default function Chatbot(): JSX.Element {
     }
   }, [isOpen, isMinimized]);
 
+  const sanitizeErrorMessage = (rawError?: string, is503?: boolean): string => {
+    if (!rawError || is503) {
+      return "Our AI assistant is temporarily unavailable. Please try again in a moment.";
+    }
+    const lower = rawError.toLowerCase();
+    if (
+      lower.includes("503") ||
+      lower.includes("high demand") ||
+      lower.includes("unavailable") ||
+      lower.includes("busy")
+    ) {
+      return "Our AI assistant is temporarily unavailable. Please try again in a moment.";
+    }
+    if (
+      rawError.trim().startsWith("{") ||
+      rawError.includes('"error"') ||
+      lower.includes("api key") ||
+      lower.includes("token")
+    ) {
+      return "Our AI assistant is temporarily unavailable. Please try again in a moment.";
+    }
+    return rawError;
+  };
+
   const handleSend = async (questionToSend?: string) => {
     const textToSend = (questionToSend || input).trim();
     if (!textToSend || loading) return;
@@ -169,24 +193,48 @@ export default function Chatbot(): JSX.Element {
           content: m.content,
         }));
 
-      const res = await fetch("/api/chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ messages: historyPayload }),
-      });
+      const sendRequest = async () => {
+        const res = await fetch("/api/chat", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ messages: historyPayload }),
+        });
+        const data = await res.json().catch(() => ({}));
+        return { res, data };
+      };
 
-      const data = await res.json();
+      let { res, data } = await sendRequest();
 
-      if (!res.ok || !data.success) {
+      // If server returns temporary 503 / high demand, show retry indicator and attempt client retry
+      if (!res.ok && (res.status === 503 || data?.code === "SERVICE_UNAVAILABLE")) {
+        const retryNoticeId = `retry-status-${Date.now()}`;
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: retryNoticeId,
+            role: "assistant",
+            content: "AI is temporarily busy. Retrying your request...",
+            timestamp: formatTime(),
+          },
+        ]);
+
+        await new Promise((resolve) => setTimeout(resolve, 2000));
+        const retryResult = await sendRequest();
+        res = retryResult.res;
+        data = retryResult.data;
+
+        // Clean up the temporary retry notice
+        setMessages((prev) => prev.filter((m) => m.id !== retryNoticeId));
+      }
+
+      if (!res.ok || !data?.success) {
         setMessages((prev) => [
           ...prev,
           {
             id: `error-${Date.now()}`,
             role: "assistant",
             error: true,
-            content:
-              data.error ||
-              "Sorry, I encountered an issue processing your question. Please try again.",
+            content: sanitizeErrorMessage(data?.error, res.status === 503),
             timestamp: formatTime(),
           },
         ]);
@@ -210,7 +258,7 @@ export default function Chatbot(): JSX.Element {
           role: "assistant",
           error: true,
           content:
-            "Network error: Unable to reach the assistant server. Please check your connection and try again.",
+            "Our AI assistant is temporarily unavailable. Please try again in a moment.",
           timestamp: formatTime(),
         },
       ]);
