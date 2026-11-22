@@ -114,7 +114,6 @@ export default function Chatbot(): JSX.Element {
   const [isMinimized, setIsMinimized] = useState(false);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
-  const [apiKeyMissing, setApiKeyMissing] = useState(false);
   const [messages, setMessages] = useState<Message[]>([
     {
       id: "welcome-1",
@@ -161,7 +160,6 @@ export default function Chatbot(): JSX.Element {
     setMessages(newMessages);
     setInput("");
     setLoading(true);
-    setApiKeyMissing(false);
 
     try {
       const historyPayload = newMessages
@@ -180,33 +178,18 @@ export default function Chatbot(): JSX.Element {
       const data = await res.json();
 
       if (!res.ok || !data.success) {
-        if (data.code === "API_KEY_MISSING") {
-          setApiKeyMissing(true);
-          setMessages((prev) => [
-            ...prev,
-            {
-              id: `error-${Date.now()}`,
-              role: "assistant",
-              error: true,
-              content:
-                "⚠️ **AI Backend Notice:**\nThe portfolio AI assistant is not yet connected to an API key.\n\nTo activate live intelligent responses, add `GEMINI_API_KEY` or `OPENAI_API_KEY` to your `.env.local` file and restart the development server.",
-              timestamp: formatTime(),
-            },
-          ]);
-        } else {
-          setMessages((prev) => [
-            ...prev,
-            {
-              id: `error-${Date.now()}`,
-              role: "assistant",
-              error: true,
-              content:
-                data.error ||
-                "Sorry, I encountered an issue processing your question. Please try again.",
-              timestamp: formatTime(),
-            },
-          ]);
-        }
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: `error-${Date.now()}`,
+            role: "assistant",
+            error: true,
+            content:
+              data.error ||
+              "Sorry, I encountered an issue processing your question. Please try again.",
+            timestamp: formatTime(),
+          },
+        ]);
       } else {
         setMessages((prev) => [
           ...prev,
@@ -253,7 +236,6 @@ export default function Chatbot(): JSX.Element {
         timestamp: formatTime(),
       },
     ]);
-    setApiKeyMissing(false);
   };
 
   return (
@@ -426,21 +408,6 @@ export default function Chatbot(): JSX.Element {
                         </div>
                       </div>
                     </motion.div>
-                  )}
-
-                  {/* Missing API Key banner help */}
-                  {apiKeyMissing && (
-                    <div className="api-key-banner">
-                      <p>
-                        💡 <strong>How to activate live AI answers:</strong>
-                      </p>
-                      <pre>
-                        GEMINI_API_KEY=your_key_here
-                      </pre>
-                      <p className="banner-subtext">
-                        Create a <code>.env.local</code> file in the project root with your Gemini or OpenAI API key.
-                      </p>
-                    </div>
                   )}
 
                   <div ref={messagesEndRef} />

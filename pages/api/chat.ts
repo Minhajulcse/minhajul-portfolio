@@ -1,6 +1,10 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import { generateChatResponse, ChatMessage, AIResponse } from "../../lib/ai-provider";
 
+export const config = {
+  maxDuration: 60,
+};
+
 // Simple in-memory sliding window rate limiter
 const ipRequests = new Map<string, { count: number; resetAt: number }>();
 const RATE_LIMIT_WINDOW_MS = 60 * 1000; // 1 minute
